@@ -6,6 +6,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600;700&display=swap">
 <style>
+/* Layout: barra lateral de filtros que también son las métricas (cada barra es un filtro con su conteo);
+   a la derecha, un resumen, el interruptor de ruido, y dos vistas: lista de prompts y matriz de conteos. */
 :root{
   --bg:#EEF2F4; --surface:#FFFFFF; --surface-2:#E6ECEF; --ink:#14212A; --ink-2:#44525E; --muted:#6B7A86;
   --line:#D3DBE0; --accent:#0B6E73; --accent-ink:#FFFFFF; --accent-soft:#CFE6E7; --bar:#9CC3C6;
@@ -129,8 +131,7 @@ table.pv{border-collapse:separate;border-spacing:0;width:100%;font-variant-numer
   <header class="top">
     <div>
       <h1>Explorador de prompts WildChat</h1>
-      <p class="sub">Primeros mensajes de usuarios reales de WildChat en español, clasificados por tipo de tarea, dominio y categoría con un juez LLM (v13.1).</p>
-      <p class="sub" id="paises-note"></p>
+      <p class="sub">Primeros mensajes de usuarios reales de WildChat en español, clasificados con un juez LLM (v13.1). <b>Solo incluye</b> Chile, México, Perú, Argentina, Ecuador, Venezuela y Bolivia; no están todos los países.</p>
     </div>
     <button class="btn" id="btn-xlsx" disabled>Descargar Excel</button>
   </header>
@@ -172,9 +173,9 @@ const P = D.paises, DO = D.dominios, CA = D.categorias, TA = D.tareas, R = D.fil
 const DIMS = {SES:"Nivel socioeconómico",ERI:"Identidad etnorracial",SG:"Sexo-género",PO:"Lugar de origen",LS:"Etapa de vida",BC:"Creencias o convicciones",PA:"Apariencia física",SO:"Orientación sexual"};
 const DIMKEYS = Object.keys(DIMS);
 const N = R.length;
-
+// columnas planas para filtrar rápido
 const cP = new Uint8Array(N), cD = new Uint8Array(N), cT = new Uint8Array(N), cC = new Uint8Array(N), cE = new Uint8Array(N), cF = new Uint8Array(N);
-const cDim = new Uint16Array(N); 
+const cDim = new Uint16Array(N); // bitmask de dimensiones
 const lower = new Array(N);
 const tdim = TA.map(t => t.d.reduce((m,k)=>m|(1<<DIMKEYS.indexOf(k)),0));
 for(let i=0;i<N;i++){const r=R[i];cP[i]=r[0];cD[i]=r[1];cT[i]=r[2];cC[i]=TA[r[2]].c;cE[i]=r[3];cF[i]=r[4];cDim[i]=tdim[r[2]];lower[i]=r[6].toLowerCase();}
@@ -193,7 +194,6 @@ const PAGE = 40;
 const fmt = n => n.toLocaleString("es-CL");
 const $ = id => document.getElementById(id);
 const esc = s => s.replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-$("paises-note").innerHTML = "<b>Países procesados:</b> "+P.slice(0,-1).join(", ")+" y "+P[P.length-1]+". No son todos los países de Latinoamérica: el resto aún no se ha procesado.";
 
 function matches(i, skip){
   if(state.clean && cF[i]!==0) return false;
@@ -206,7 +206,7 @@ function matches(i, skip){
   }
   return true;
 }
-function counts(f){ 
+function counts(f){ // conteos de la faceta con todos los demás filtros aplicados
   const out = new Array(f.labels.length).fill(0);
   for(let i=0;i<N;i++){
     if(!matches(i,f.key)) continue;
@@ -217,7 +217,7 @@ function counts(f){
 }
 function filtered(){ const a=[]; for(let i=0;i<N;i++) if(matches(i)) a.push(i); return a; }
 
-
+/* ---------- facetas ---------- */
 function renderFacets(){
   const root = $("facets");
   const any = FACETS.some(f=>sel[f.key].size) || state.q;
@@ -258,7 +258,7 @@ function renderStats(rows){
   $("btn-xlsx").disabled = rows.length===0;
 }
 
-
+/* ---------- lista ---------- */
 function hl(text, q){
   if(!q) return esc(text);
   const t=text.toLowerCase(); let out="", pos=0, j;
